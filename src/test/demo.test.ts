@@ -1,6 +1,7 @@
 import {add} from "./utils";
 import HelloWorld from "../components/HelloWorld.vue";
-import {mount} from "@vue/test-utils";
+import {mount, shallowMount} from "@vue/test-utils";
+import demo from '../components/demo';
 
 describe('demo', () => {
   it('add', () => {
@@ -14,5 +15,12 @@ describe('demo', () => {
       }
     })
     expect(wrapper.get("h1").html()).toBe('<h1>Hello Vue 3 + TypeScript + Vite</h1>')
+    wrapper.unmount()
+  });
+
+  it('jsx测试', () => {
+    const wrapper = mount(demo)
+    expect(wrapper.get("div").html()).toBe('<div>HelloWorld</div>')
+    wrapper.unmount()
   });
 })
