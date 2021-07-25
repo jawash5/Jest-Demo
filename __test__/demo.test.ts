@@ -1,7 +1,8 @@
-import {add} from "./utils";
-import HelloWorld from "../components/HelloWorld.vue";
+import {add} from "../src/test/utils";
+import HelloWorld from "../src/components/HelloWorld.vue";
 import {mount, shallowMount} from "@vue/test-utils";
-import demo from '../components/demo';
+import demo from '../src/components/demo';
+import App from '../src/App.vue'
 
 describe('demo', () => {
   it('add', () => {
@@ -21,6 +22,12 @@ describe('demo', () => {
   it('jsx测试', () => {
     const wrapper = mount(demo)
     expect(wrapper.get("div").html()).toBe('<div>HelloWorld</div>')
+    wrapper.unmount()
+  });
+
+  it('图片测试', function () {
+    const wrapper = shallowMount(App)
+    expect(wrapper.find("img").exists()).toBe(true)
     wrapper.unmount()
   });
 })
