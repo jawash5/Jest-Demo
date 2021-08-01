@@ -15,6 +15,7 @@ describe('demo', () => {
         msg: 'Hello Vue 3 + TypeScript + Vite'
       }
     })
+    expect(wrapper.html()).toMatchSnapshot()
     expect(wrapper.get("h1").html()).toBe('<h1>Hello Vue 3 + TypeScript + Vite</h1>')
     wrapper.unmount()
   });
