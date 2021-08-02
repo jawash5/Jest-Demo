@@ -10,41 +10,75 @@
 yarn add --dev jest@26.6.3
 ```
 
-当然，由于我们使用 `TypeScript`，故还需添加对 `TypeScript` 的支持。
-
-```shell
-yarn add --dev ts-jest@26.5.6 @types/jest
-```
-
 将如下代码添加到 `package.json` 中：
 
 ```json
 {
-  "scripts": {
-    "test": "jest --coverage"  // --coverage 覆盖率测试
-  }
+	"scripts": {
+		"test": "jest --coverage"
+  	}
 }
 ```
 
-至此，一个简单的 `jest` 配置就完成了。
+至此，基础的 `jest` 安装就完成了，但是你会发现**此时的 `jest` 测试代码有很大的局限性，此时的 `jest` 尚不支持包括 `vue` 、`typescript`、`tsx`等代码**。
 
-## 支持 ES6+ 的代码测试
+## 资源转换
 
-如果测试脚本是用 `ES6` 写的，则需要在快速配置的基础上，配置 `babel` 转码。
+**`jest` 默认只支持纯 `js` 代码`（ES5）`**，但是事实是，在我们的工作环境中，不可避免地会用到例如 `vue` 、`typescript`、`tsx`等代码，那此时我们就需要进行资源的转换，将其他代码转成符合 `jest` 的规范的测试代码，那么资源转换的核心就是 **其他资源 => 纯`js`**：
 
-我们首先在**根目录下创建 `jest.config.js` 文件**，此文件是对 `jest` 的配置文件。
+```
+(es6 + vue3 + ts + css + tsx ...) => 转换成纯 js => 进行jest测试
+```
+
+那么，我们来详细谈谈各资源文件如何转换：
+
+- `es6` => `js`：我们需要用 `babel` 先对 `es6` 编译，那么我们该如何在 `jest` 中使用 `babel` 呢，你可以查看下文中的[支持 `ES6`+ 的代码测试](####支持 `ES6`+ 的代码测试)。
+
+- `vue3` => `js`：此处的想法是将 `vue` 的代码转换成符合 `jest` 的纯 `js` 代码，这可能是个困难的工作，不过好在有现成的 `vue-jest` 包，注意需安装3.0版本以上，用于支持 `vue3`，详情请看[支持 `Vue` 组件测试](####支持  组件测试)。
+
+- `ts` => `js`：此处有两种方法来对 `ts` 进行支持：
+    1. 使用 `babel`： 与 `es6 => js` 一样，需要首先启用 `babel`，然后使用 `yarn` 安装 `@babel/preset-typescript`，并将 `@babel/preset-typescript` 添加到 `babel.config.js` 中的 presets 列表中。**此方法存在一定的弊端**，我们在写 `jest` 代码时，并不会对测试用例做类型检查，因为此处对 `Typescript` 的支持是通过代码转换实现的。
+    2. 使用`ts-jest`：此方法是**推荐的方法**，并且支持类型检查。我们需要安装 `ts-jest`，详情见[支持TS的代码测试](#### **支持 `TS` 的代码测试**)。
+- `jsx / tsx` => `js`：此项也需要 `babel` 进行支持，详情见[支持 JSX、TSX 测试](####支持 JSX、TSX 测试)。
+- 图片等静态资源、css等样式文件 => “`js`”：此处的 `=>` 并不是说将这些文件转成 `js` 格式，而是希望他们能够被 `jest` 所认识（`jest` 只认识纯 `js`）。这些文件在项目中并不是必要的，所以我们可以采用模拟（mock）的形式，**凡是 `jest` 遇到了这些文件，都用模拟的文件来替换他们**，使之能够被 `jest` 认识，详情见[非必要资源](### 非必要资源)。
+
+### 必要资源转换
+
+在配置时，你可能需要参考官网，进行更为细粒度的配置项，官网地址如下：
 
 > `jest.config.js` API地址：https://jestjs.io/zh-Hans/docs/configuration
 >
 > `ts-jest` API地址：https://kulshekhar.github.io/ts-jest/
 
+#### **支持 `TS` 的代码测试**
+
+我们可以在命令行中敲如下代码：
+
+```shell
+yarn ts-jest config:init
+```
+
+这将**根目录下创建 `jest.config.js` 文件**，它将告知  Jest 如何正确处理 `.ts ` 文件。此文件是 `jest` 的配置文件，后续对 `jest` 的配置都将在此文件上进行修改，当然，你也可以手动来创建这个文件，以下是初始化的代码：
+
+```javascript
+module.exports = {
+  preset: "ts-jest",
+  testEnvironment: "node" // 测试环境。Jest 中的默认环境是 Node.js 环境。如果正在构建 Web 应用程序，则可以改用类似浏览器的环境jsdom。
+}
+```
+
+`preset` 项是一个预设项，相当于是一个配置的“语法糖”，一行完成配置，此处的 `ts-jest` 预设项，即完成了`jest` 对 `ts` 的支持。
+
+#### 支持 `ES6`+ 的代码测试
+
+如果测试脚本是用 `ES6` 写的，则需要配置 `babel` 转码。
+
 我们进行 `jest.config.js` 文件的基础配置：
 
 ```javascript
 module.exports = {
-  preset: "ts-jest", // Jest 配置基础的预设
-  testEnvironment: 'jest-environment-jsdom-fifteen', // 测试环境。Jest 中的默认环境是 Node.js 环境。如果正在构建 Web 应用程序，则可以改用类似浏览器的环境jsdom。此处使用jsdom15，支持node8，需安装相应依赖
-  moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json", "node"], // 文件扩展名数组
+  preset: "ts-jest",
+  testEnvironment: "node",
   globals: {
     "ts-jest": {
       babelConfig: true // 启用Babel处理，使用 babel.config.js
@@ -53,19 +87,19 @@ module.exports = {
 }
 ```
 
-安装 `jsdom15`：
+安装 `@babel/preset-env`
 
 ```shell
-yarn add --dev jest-environment-jsdom-fifteen
+yarn add --dev @babel/preset-env
 ```
 
-我们在根目录下创建 `babel.config.js` 文件：
+我们在**根目录下创建 `babel.config.js` 文件**：
 
 ```javascript
 module.exports = {
   env: {
     test: {
-      presets: [["@babel/preset-env", {targets: {node: 'current'}}]]
+      presets: [["@babel/preset-env", { targets: { node: 'current' } }]]
     }
   }
 };
@@ -73,7 +107,7 @@ module.exports = {
 
 至此，我们已经可以执行我们用 `ES6` 写的测试代码啦。
 
-## 支持 `Vue` 组件测试
+#### 支持 `Vue` 组件测试
 
 如果我们需要测试的是 `Vue` 组件，那么我们也先需要添加相关的依赖：
 
@@ -81,28 +115,51 @@ module.exports = {
 yarn add --dev @vue/test-utils@next vue-jest@next babel-plugin-file-loader
 ```
 
-然后，我们需要添加下 `jest.config.js` 中的相关配置，添加 `transform`配置项，使我们的 `.vue` 文件能够被“认识”。
+然后，我们需要添加下 `jest.config.js` 中的相关配置，添加 `transform`配置项，使我们的 `.vue` 文件能够被 `jest` “认识”，并交给 `vue-jest` 处理。
+
+值得注意的是，**`testEnvironment`项需改为 `jsdom`， 我们也可以使用 `jsdom15`**，用来支持 `node8`：
+
+```shell
+yarn add --dev jest-environment-jsdom-fifteen
+```
 
 ```javascript
 module.exports = {
-  preset: "ts-jest", // Jest 配置基础的预设
-  testEnvironment: 'jest-environment-jsdom-fifteen', // 测试环境。Jest 中的默认环境是 Node.js 环境。如果正在构建 Web 应用程序，则可以改用类似浏览器的环境jsdom。此处使用jsdom15，需安装相应依赖
-  moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json", "node"], // 文件扩展名数组
+  preset: "ts-jest",
+  testEnvironment: 'jest-environment-jsdom-fifteen', // 此处使用jsdom15，需安装相应依赖
   transform: {
-    "^.+\\.(vue|md)$": "<rootDir>/node_modules/vue-jest"
+    "^.+\\.vue$": "<rootDir>/node_modules/vue-jest"
   },  // 用 `vue-jest` 处理 `*.vue` 文件
   globals: {
     "ts-jest": {
-      babelConfig: true // 启用 Babel 处理，使用 babel.config.js
+      babelConfig: true
     }
   }
 }
-
 ```
 
-至此，关于对 `Vue` 组件的测试配置已经完成，关于如何写组件的测试代码，详情请看下文中的[组件测试](##组件测试)。
+至此，关于对 `Vue` 组件的测试配置已经完成，关于如何写组件的测试代码，详情请看下文中的[组件测试](## 组件测试)。
 
-## 支持 JSX、TSX 测试
+#### 支持 JSX、TSX 测试
+
+我们进行 `jest.config.js` 文件的基础配置：
+
+```javascript
+module.exports = {
+  preset: "ts-jest",
+  testEnvironment: 'jest-environment-jsdom-fifteen', 
+  transform: {
+    "^.+\\.vue$": "<rootDir>/node_modules/vue-jest"
+  },
+  globals: {
+    "ts-jest": {
+      babelConfig: true
+    }
+  }
+}
+```
+
+安装 `@babel/preset-env`
 
 按照惯例，我们先添加相关依赖：
 
@@ -116,8 +173,10 @@ yarn add @vue/babel-plugin-jsx --dev
 module.exports = {
   env: {
     test: {
-      presets: [["@babel/preset-env", {targets: {node: 'current'}}]],
-      plugins: [["@vue/babel-plugin-jsx", {mergeProps: false}]]
+      presets: [["@babel/preset-env", { targets: { node: 'current' } }]],
+      plugins: [
+        ["@vue/babel-plugin-jsx", { mergeProps: false }]
+      ]
     }
   }
 };
@@ -125,30 +184,33 @@ module.exports = {
 
 至此，关于 JSX、TSX 的测试配置已经完成！
 
-## 图片与 `css` 文件
+### 非必要资源转换
+
+#### 图片与 `css` 文件
 
 如果你在你的`.vue` 或者 `.tsx` 等文件中有使用到图片，或加载了 `css` 文件，那么在测试代码执行时，就会报错。
 
-因此，我们需要对图片等文件进行相应的处理，我们在 `jest.config.js` 文件中添加配置项：
+因此，我们需要对图片等文件进行相应的模拟处理，我们在 `jest.config.js` 文件中添加配置项：
 
 ```javascript
 module.exports = {
-  preset: "ts-jest", // Jest 配置基础的预设  
-  testEnvironment: 'jest-environment-jsdom-fifteen', // 测试环境。Jest 中的默认环境是 Node.js 环境。如果正在构建 Web 应用程序，则可以改用类似浏览器的环境jsdom。此处使用jsdom15，需安装相应依赖 
-  moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json", "node"], // 文件扩展名数组  
-  transform: {    
-    "^.+\\.(vue|md)$": "<rootDir>/node_modules/vue-jest"  
-  },  // 用 `vue-jest` 处理 `*.vue` 文件  
-  moduleNameMapper: {    
-  "\\.(jpg|ico|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$":      
-    "<rootDir>/__test__/fileMock.ts", // 重定向至自己写的mock文件中，mock上述文件
-  "\\.(css|less)$": "<rootDir>/__test__/fileMock.ts"  },   
-  globals: {    
-    "ts-jest": {      
-      babelConfig: true // 启用 Babel 处理，使用 babel.config.js    
-    }  
+  preset: "ts-jest", 
+  testEnvironment: 'jest-environment-jsdom-fifteen', 
+  transform: {
+    "^.+\\.(vue|md)$": "<rootDir>/node_modules/vue-jest"
+  },  // 用 `vue-jest` 处理 `*.vue` 文件
+  moduleNameMapper: {
+    "\\.(jpg|ico|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$":
+      "<rootDir>/__test__/fileMock.ts", // 重定向至自己写的mock文件中，mock上述文件
+    "\\.(css|less)$": "<rootDir>/__test__/fileMock.ts"
+  }, 
+  globals: {
+    "ts-jest": {
+      babelConfig: true // 启用 Babel 处理，使用 babel.config.js
+    }
   }
 }
+
 ```
 
 然后，我们在根目录下创建一个 `__test__` 文件夹，并在文件夹内创建 `fileMock.ts` 文件，即我们的 `mock` 文件：
@@ -157,64 +219,47 @@ module.exports = {
 module.exports = "";
 ```
 
-## 其他
+此时，`jest` 凡是遇到 `png `、`css` 等文件，都会重定向至 `fileMock.ts` 文件，得到空字符串来模拟我们的非必要资源。
+
+### 其他配置
 
 > 其他配置项可参考：https://www.jestjs.cn/docs/configuration
 
-### 匹配测试文件
+#### 文件扩展名数组
 
-为了测试文件的统一管理，我们可以配置 `jest` 只读取某个文件夹下的测试文件，默认情况下 jest 会测试所有 `__tests__` 下的所有文件，以及任何位置的`. (test|spec).(ts|tsx|js|jsx)`
-文件（`(/__tests__/.*|(\\.|/)(test|spec))\\.[jt]sx?$`）
+如果引用的模块不指定文件扩展名，那么Jest将按照从左到右的顺序查找这些扩展名，配置此项可提高匹配效率。
+
+```javascript
+module.exports = {
+  moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json", "node"]
+};
+```
+
+#### 匹配测试文件
+
+为了测试文件的统一管理，我们可以配置 `jest` 只读取某个文件夹下的测试文件，默认情况下 jest 会测试所有 `__tests__` 下的所有文件，以及任何位置的`. (test|spec).(ts|tsx|js|jsx)` 文件（`(/__tests__/.*|(\\.|/)(test|spec))\\.[jt]sx?$`）
 
 我们可以添加 `jest.config.js` 中的 `testRegex` 项，使其只测试我们指定的 `__test__` 内的指定文件：
 
 ```javascript
-module.exports = {	
-  // ...    
-  testRegex: "(/__test__/.*/*.(test|spec))\\.tsx?$",	
-  // ...
+module.exports = {
+    testRegex: "(/__test__/.*/*.(test|spec))\\.tsx?$"
 }
 ```
 
-### 匹配 alias
+#### 匹配 alias
 
 此外，你可能会在项目中使用 `alias`，这回导致测试时报引用错误，我们可以在 `jest.config.js` 中添加配置项，例如：
 
 ```javascript
-module.exports = {	// ...    
-  moduleNameMapper: {        
-    "^@/(.*)$": "<rootDir>/src/$1",        
-    "^@plugins/(.*)$": "<rootDir>/src/plugins/$1",        
-    "^@core/(.*)$": "<rootDir>/src/core/$1"    
-  }, 
-  // ...
+module.exports = {
+    moduleNameMapper: {
+        "^@/(.*)$": "<rootDir>/src/$1",
+        "^@plugins/(.*)$": "<rootDir>/src/plugins/$1",
+        "^@core/(.*)$": "<rootDir>/src/core/$1"
+    }
 }
 ```
-
-# 怎么写 Jest
-
-> jest 使用文档：https://jestjs.io/zh-Hans/docs/getting-started
->
-> vue-test-utils 使用文档：https://next.vue-test-utils.vuejs.org/guide/
-
-## 测试文件
-
-通常，测试脚本与所要测试的源码脚本同名，但是后缀名为`.test.js` 或者`.spec.js`
-
-我们需要在我们创建的项目的 `__test__` 文件夹下创建一个测试文件，如 `demo.test.ts`，并搭建好基础的测试文件结构。
-
-```javascript
-describe('testDemo', () => {
-  it('函数测试', () => {
-  });
-})
-```
-
-测试脚本里面应该包括一个或多个`describe`块，每个`describe`块应该包括一个或多个`it`块。
-
-`describe`块称为"测试套件"（test suite），表示一组相关的测试。它是一个函数，第一个参数是测试套件的名称（"testDemo"），第二个参数是一个实际执行的函数。
-
-`it`块称为"测试用例"（test case），表示一个单独的测试，是测试的最小单位。它也是一个函数，第一个参数是测试用例的名称（"函数测试"），第二个参数是一个实际执行的函数。
 
 # 怎么写 Jest
 
@@ -276,7 +321,7 @@ describe('test', () => {
 
 > 当比较两个对象是否相同时，需使用toEqual()，toBe()只会检查对象引用是否相同
 
-### 安装和移除（Setup and Teardown）
+### 预处理与后处理（Setup and Teardown）
 
 `jest`中也有类似生命周期的函数，一共包括四个：
 

@@ -31,4 +31,23 @@ describe('demo', () => {
     expect(wrapper.find("img").exists()).toBe(true)
     wrapper.unmount()
   });
+
+  it('E2E测试', async function () {
+    const wrapper = mount(HelloWorld, {
+      props: {
+        msg: 'Hello Vue 3 + TypeScript + Vite'
+      }
+    })
+    await wrapper.get("button").trigger('click')
+    expect(wrapper.get("button").html()).toContain('1')
+    wrapper.unmount()
+  });
+
+  it('图片测试', function () {
+    const wrapper = mount(App)
+    console.log(wrapper.html())
+    expect(wrapper.find("img").exists()).toBe(true)
+    wrapper.unmount()
+  });
+
 })
